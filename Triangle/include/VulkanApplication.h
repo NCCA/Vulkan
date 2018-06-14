@@ -81,6 +81,8 @@ private:
     std::vector<VkFence> inFlightFences;
     size_t currentFrame = 0;
 
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet descriptorSet;
     void initWindow();
 
     void initVulkan();
@@ -101,12 +103,13 @@ private:
     void createSurface() ;
 
     void createDescriptorSetLayout() ;
+    void createDescriptorSet() ;
 
     void pickPhysicalDevice();
 
     void createLogicalDevice() ;
 
-
+    void createDescriptorPool();
     void createSwapChain();
 
     void createImageViews() ;

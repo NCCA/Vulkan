@@ -48,7 +48,7 @@ const std::vector<const char*> deviceExtensions =
 };
 
 // For some reason validation layers don't seem to work on mac
-#if defined(NDEBUG) // || defined(__APPLE__)
+#if defined(NDEBUG)  || defined(__APPLE__)
 const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
@@ -91,8 +91,6 @@ struct Vertex
 struct UniformBufferObject
 {
     glm::mat4 MVP=glm::mat4(1);
-    glm::mat4 view=glm::mat4(1);
-    glm::mat4 proj=glm::mat4(1);
 };
 
 const std::vector<Vertex> vertices =
@@ -107,6 +105,54 @@ VulkanApplication::VulkanApplication()
     initWindow();
 }
 
+
+void VulkanApplication::createDescriptorPool()
+{
+        VkDescriptorPoolSize poolSize = {};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = 1;
+
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = 1;
+
+        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor pool!");
+        }
+    }
+
+
+void VulkanApplication::createDescriptorSet()
+{
+    VkDescriptorSetLayout layouts[] = {descriptorSetLayout};
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = layouts;
+
+    if (vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate descriptor set!");
+    }
+
+    VkDescriptorBufferInfo bufferInfo = {};
+    bufferInfo.buffer = uniformBuffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(UniformBufferObject);
+
+    VkWriteDescriptorSet descriptorWrite = {};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+}
 
 
 void VulkanApplication::initWindow()
@@ -134,6 +180,9 @@ void VulkanApplication::initVulkan()
     createCommandPool();
     createVertexBuffer();
     createUniformBuffer();
+    createDescriptorPool();
+    createDescriptorSet();
+
     createCommandBuffers();
     createSyncObjects();
 }
@@ -768,6 +817,7 @@ void VulkanApplication::createCommandBuffers()
             VkBuffer vertexBuffers[] = {vertexBuffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+            vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
             vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
@@ -819,26 +869,20 @@ void VulkanApplication::createUniformBuffer()
 
 void VulkanApplication::updateUniformBuffer()
 {
-//    static auto startTime = std::chrono::high_resolution_clock::now();
+    static auto startTime = std::chrono::high_resolution_clock::now();
 
-//    auto currentTime = std::chrono::high_resolution_clock::now();
-//    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
      UniformBufferObject ubo = {};
-//    glm::mat4 model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-//    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-//    glm::mat4 proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+    glm::mat4 model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
 
 //    proj[1][1] *= -1;
-    ubo.MVP=glm::mat4(1.0f);
+    ubo.MVP=proj*view*model;
     void* data;
     vkMapMemory(device, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
-//    float *d=(float *)data;
-//    for(size_t i=0; i<sizeof(ubo); ++i)
-//      std::cout<<d[i]<<'\n';
-//    std::cout<<glm::to_string(ubo.MVP)<<'\n';
-//    std::cout<<data<<'\n';
-//    *(float *)data=1.0f;
 
     memcpy(data, &ubo, sizeof(ubo));
 

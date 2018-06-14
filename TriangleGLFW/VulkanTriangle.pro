@@ -1,9 +1,6 @@
 TARGET=VulkanTriangle
 CONFIG+=c++14
-SOURCES+=$$PWD/src/main.cpp \
-         $$PWD/src/VulkanInstance.cpp
-
-HEADERS+=$$PWD/include/VulkanInstance.h
+SOURCES+=$$PWD/src/main.cpp
 
 OTHER_FILES+=$$PWD/src/*.glsl
 
